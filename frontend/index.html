@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<body>
+    <h1>Frontend</h1>
+    <p id="message">Click the below button to load the message</p>
+    <button onclick="loadMessage()">Get message from backend</button>
+
+    <script>
+        function loadMessage(){
+            // alert('button clicked');
+            fetch("http://127.0.0.1:5000/message")
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('message').innerText = data.message;
+                })
+                .catch(error => {
+                    console.error("Error fetching message:", error)
+                });
+        }
+    </script>
+</body>
+</html>
