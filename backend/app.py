@@ -1,6 +1,6 @@
 from flask import Flask
 from flask_cors import CORS
-from models import db
+from models import db, User
 from routes import api
 
 app = Flask(__name__)
@@ -21,4 +21,12 @@ api.init_app(app)
 if __name__ == "__main__":
     with app.app_context():
         db.create_all()
+        admin=User.query.filter_by(email='admin@gamil.com').first()
+        if not admin:
+            admin=User(email='admin@gamil.com',password='adminpass', role='admin')
+            db.session.add(admin)
+            db.session.commit()
+            print('Admin user created with email:admin@gamil.com and password:adminpass')
+        else:
+            print('Admin user already exists with email:admin@gamil.com and password:adminpass')
     app.run(debug = True)
