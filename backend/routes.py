@@ -1,6 +1,9 @@
 from flask_restful import Api, Resource
 from flask import request
 from flask_jwt_extended import create_access_token, jwt_required, get_jwt_identity
+from flask_caching import Cache
+
+cache = Cache()
 
 from models import db, User, Pizza
 
@@ -20,15 +23,20 @@ api.add_resource(HelloWorld, '/')
 class Registration(Resource):
     def post(self):
         data = request.get_json()
-        if not data or 'email' not in data or 'password' not in data:
-            return {'message': 'Email and password are required!'}, 400
         
+        # 400 Bad Request → Missing fields
+        if not data or 'email' not in data or 'password' not in data or not data['email'] or not data['password']:
+            return {'message': 'Email and/or password are required!'}, 400
+        
+        # 409 Conflict → User already exists
         existing_user = User.query.filter_by(email=data['email']).first()
         if existing_user:
-            return {'message': 'User already exists!'}, 400
+            return {'message': 'User already exists!'}, 409
         
+        # 201 Created → Success
         new_user = User(email=data['email'], password=data['password'])
-        db.session.add(new_user); db.session.commit()
+        db.session.add(new_user)
+        db.session.commit()
 
         return {'message': 'User registered successfully!'}, 201
 api.add_resource(Registration, '/register')
@@ -36,8 +44,8 @@ api.add_resource(Registration, '/register')
 class Login(Resource):
     def post(self):
         data = request.get_json()
-        if not data or 'email' not in data or 'password' not in data:
-            return {'message': 'Email and password are required!'}, 400
+        if not data or 'email' not in data or 'password' not in data or not data['email'] or not data['password']:
+            return {'message': 'Email and/or password are required!'}, 400
         
         user = User.query.filter_by(email=data['email'], password=data['password']).first()
         if not user:
@@ -49,10 +57,13 @@ class Login(Resource):
 api.add_resource(Login, '/login')
 
 ## USER endpoints
+import time
 
 class PizzaAPI(Resource):
-    @jwt_required()
+    # @jwt_required()
+    @cache.cached(timeout=30, key_prefix='pizza_api_get')
     def get(self, pizza_id=None):
+        time.sleep(5)
         if pizza_id:
             pizza = Pizza.query.get(pizza_id)
             if not pizza:
@@ -62,11 +73,11 @@ class PizzaAPI(Resource):
         pizzas = [{'id': p.id, 'name': p.name, 'toppings': p.toppings} for p in pizzas]
         return {'message': 'Pizzas fetched successfully!', "pizzas": pizzas}, 200
     
-    @jwt_required()
+    # @jwt_required()
     def post(self):
-        user = User.query.filter_by(email=get_jwt_identity()).first()
-        if user.role != 'admin':
-            return {'message': 'Admin privilege required!'}, 403
+        # user = User.query.filter_by(email=get_jwt_identity()).first()
+        # if user.role != 'admin':
+            # return {'message': 'Admin privilege required!'}, 403
 
         data = request.get_json()
 
@@ -75,12 +86,13 @@ class PizzaAPI(Resource):
         
         pizza = Pizza(name=data['name'], toppings=data.get('toppings', False))
         db.session.add(pizza); db.session.commit()
+        cache.delete('pizza_api_get')
         
         return {'message': 'Pizza created!'}, 201
     
-    @jwt_required()
+    # @jwt_required()
     def put(self, pizza_id=None):
-        user = User.query.filter_by(email=get_jwt_identity()).first()
+        # user = User.query.filter_by(email=get_jwt_identity()).first()
         if user.role != 'admin':
             return {'message': 'Admin privilege required!'}, 403
 
@@ -100,6 +112,7 @@ class PizzaAPI(Resource):
         pizza.name = data.get('name', pizza.name)
         pizza.toppings = data.get('toppings', pizza.toppings)
         db.session.commit()
+        cache.delete('pizza_api_get')
         
         return {'message': 'Pizza updated!'}, 200
     
@@ -117,6 +130,7 @@ class PizzaAPI(Resource):
             return {'message': 'Pizza not found!'}, 404
         
         db.session.delete(pizza); db.session.commit()
+        cache.delete('pizza_api_get')
 
         return {'message': 'Pizza deleted!'}, 200
     

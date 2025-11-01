@@ -8,5 +8,13 @@ Open the terminal and execute the following command:
     pip install -r requirements.txt
     python app.py
     ```
+For mailhog
+    Run the mailhog.exe file and then execute the python file
 
 ## Frontend 
+Open another terminal and execute the following commands:
+    ```
+    cd frontend
+    npm install
+    npm run dev
+    ```
